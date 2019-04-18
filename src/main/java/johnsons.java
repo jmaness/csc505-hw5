@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -15,51 +14,62 @@ import java.util.function.BiFunction;
  *
  */
 public class johnsons {
-    private int n;
-    private int m;
-    private Set<Edge> edges;
-    private List<Query> queries;
 
-    private Integer[][] shortestPaths;
-    private Graph g;
-
-    private johnsons(int n, int m, Set<Edge> edges, List<Query> queries) {
-        this.n = n;
-        this.m = m;
-        this.edges = edges;
-        this.queries = queries;
-        this.shortestPaths = new Integer[n][n];
-
-        Set<Vertex> vertices = new HashSet<>();
+    private void run(int n, int m, Set<Edge> edges, List<Query> queries) {
+        Vertex[] vertices = new Vertex[n];
         for (Edge e : edges) {
-            vertices.add(e.src);
-            vertices.add(e.dest);
+            vertices[e.src.id] = e.src;
+            vertices[e.dest.id] = e.dest;
         }
 
-        g = new Graph(vertices, edges);
+        Graph g = new Graph(vertices, edges);
+        Integer[][] D = johnson(g);
+
+        if (D != null) {
+            for (Query query : queries) {
+                Integer len = D[query.src][query.dest];
+                System.out.println(String.format("%s -> %s = %s",
+                        query.src,
+                        query.dest,
+                        len != null ? len : "x"));
+            }
+        }
     }
 
-    private void run() {
-        johnson(g);
-    }
 
-    private void johnson(Graph g) {
+    private Integer[][] johnson(Graph g) {
+        // new vertex not in G.V
         Vertex s = new Vertex(g.vertices.length, 0);
 
-        Set<Vertex> gPrimeVertices = new HashSet<>(Arrays.asList(g.vertices));
-        gPrimeVertices.add(s);
+        // G.V  U  {s}
+        Vertex[] gPrimeVertices = new Vertex[g.vertices.length + 1];
+        for (Vertex v : g.vertices) {
+            gPrimeVertices[v.id] = new Vertex(v.id, v.distance);
+        }
+        gPrimeVertices[g.vertices.length] = s;
 
-        Set<Edge> gPrimeEdges = new HashSet<>(g.edges);
+        // G.E  U  {(s, v) : v \in G.V} and w(s, v) = 0 for all v \in G.V
+        Set<Edge> gPrimeEdges = new HashSet<>();
+        for (Edge e : g.edges) {
+            gPrimeEdges.add(new Edge(gPrimeVertices[e.src.id], gPrimeVertices[e.dest.id], e.weight));
+        }
+
         for (Vertex v : g.vertices) {
             gPrimeEdges.add(new Edge(s, v, 0));
         }
 
         Graph gPrime = new Graph(gPrimeVertices, gPrimeEdges);
 
-        // Run Bellman-Ford
+        // Run Bellman-Ford to detect negative edge weight cycles
         if (!bellmanFord(gPrime, (u,v) -> weight(gPrime, u, v), s)) {
             System.out.println("Negative edge weight cycle");
-            return;
+            return null;
+        }
+
+        // For every vertex in G'.V, set h(v) = \delta(s, v) computed by Bellman-Ford
+        Integer[] h = new Integer[gPrime.vertices.length];
+        for (Vertex v : gPrime.vertices) {
+            h[v.id] = v.distance;
         }
 
         for (Vertex vertex : g.vertices) {
@@ -67,14 +77,9 @@ public class johnsons {
             //dijkstra()
         }
 
-        for (Query query : queries) {
-            Integer len = getShortedPathLength(query.src, query.dest);
+        Integer[][] D = new Integer[g.vertices.length][g.vertices.length];
 
-            System.out.println(String.format("%s -> %s = %s",
-                    query.src,
-                    query.dest,
-                    len != null ? len : "x"));
-        }
+        return D;
     }
 
     private Integer weight(Graph g, Vertex u, Vertex v) {
@@ -94,7 +99,7 @@ public class johnsons {
     private boolean bellmanFord(Graph G, BiFunction<Vertex, Vertex, Integer> w, Vertex s) {
         initializeSingleSource(G, s);
 
-        for (int i = 1; i < n; i++) {
+        for (int i = 1; i < G.vertices.length; i++) {
             for (Edge e : G.edges) {
                 relax(e.src, e.dest, w);
             }
@@ -126,7 +131,7 @@ public class johnsons {
         }
     }
 
-    private Integer getShortedPathLength(int src, int dest) {
+    private Integer getShortestPathLength(Graph g, int src, int dest) {
         return null; // TODO
     }
 
@@ -151,7 +156,7 @@ public class johnsons {
             queries.add(new Query(scanner.nextInt(), scanner.nextInt()));
         }
 
-        new johnsons(n, m, new HashSet<>(edges), queries).run();
+        new johnsons().run(n, m, new HashSet<>(edges), queries);
     }
 
     /**
@@ -169,15 +174,11 @@ public class johnsons {
          * @param vertices Given set of all vertices on the graph
          * @param edges set of all edges in the graph
          */
-        private Graph(Set<Vertex> vertices, Set<Edge> edges) {
-            this.vertices = new Vertex[vertices.size()];
-            for (Vertex v : vertices) {
-                this.vertices[v.id] = v;
-            }
-
+        private Graph(Vertex[] vertices, Set<Edge> edges) {
+            this.vertices = vertices;
             this.edges = edges;
-            this.adjList = new ArrayList<>(vertices.size());
-            for (int i = 0; i < vertices.size(); i++) {
+            this.adjList = new ArrayList<>(vertices.length);
+            for (int i = 0; i < vertices.length; i++) {
                 adjList.add(null);
             }
 
