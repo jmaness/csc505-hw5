@@ -44,7 +44,8 @@ public class johnsons {
         // G.V  U  {s}
         Vertex[] gPrimeVertices = new Vertex[g.vertices.length + 1];
         for (Vertex v : g.vertices) {
-            gPrimeVertices[v.id] = new Vertex(v.id, v.distance);
+            //gPrimeVertices[v.id] = new Vertex(v.id, v.distance);
+            gPrimeVertices[v.id] = v;
         }
         gPrimeVertices[g.vertices.length] = s;
 
@@ -54,7 +55,7 @@ public class johnsons {
             gPrimeEdges.add(new Edge(gPrimeVertices[e.src.id], gPrimeVertices[e.dest.id], e.weight));
         }
 
-        for (Vertex v : g.vertices) {
+        for (Vertex v : gPrimeVertices) {
             gPrimeEdges.add(new Edge(s, v, 0));
         }
 
@@ -72,12 +73,17 @@ public class johnsons {
             h[v.id] = v.distance;
         }
 
-        for (Vertex vertex : g.vertices) {
-            // Run Dijkstra
-            //dijkstra()
-        }
-
         Integer[][] D = new Integer[g.vertices.length][g.vertices.length];
+        BiFunction<Vertex, Vertex, Integer> w = (u, v) -> weight(g, u, v);
+        for (Vertex u : g.vertices) {
+            // Run Dijkstra
+            dijkstra(g, (x, y) -> reweight(w, x, y, h), u);
+            for (Vertex v : g.vertices) {
+                if (v.distance != Integer.MAX_VALUE) {
+                    D[u.id][v.id] = v.distance + h[v.id] - h[u.id];
+                }
+            }
+        }
 
         return D;
     }
@@ -94,6 +100,32 @@ public class johnsons {
         }
 
         return null;
+    }
+
+    private Integer reweight(BiFunction<Vertex, Vertex, Integer> w, Vertex u, Vertex v, Integer[] h) {
+        Integer weight = w.apply(u, v);
+        if (weight == null) {
+            return null;
+        }
+
+        return w.apply(u, v) + h[u.id] - h[v.id];
+    }
+
+    private void initializeSingleSource(Graph G, Vertex s) {
+        for (Vertex vertex : G.vertices) {
+            vertex.distance = Integer.MAX_VALUE;
+            vertex.parent = null;
+        }
+
+        s.distance = 0;
+    }
+
+    private void relax(Vertex u, Vertex v, BiFunction<Vertex, Vertex, Integer> w) {
+        long relaxedDistance = ((long) u.distance) + w.apply(u, v);
+        if (v.distance > relaxedDistance) {
+            v.distance = (int) relaxedDistance;
+            v.parent = u;
+        }
     }
 
     private boolean bellmanFord(Graph G, BiFunction<Vertex, Vertex, Integer> w, Vertex s) {
@@ -114,27 +146,28 @@ public class johnsons {
         return true;
     }
 
-    private void initializeSingleSource(Graph G, Vertex s) {
-        for (Vertex vertex : G.vertices) {
-            vertex.distance = Integer.MAX_VALUE;
-            vertex.parent = null;
+    private void dijkstra(Graph g, BiFunction<Vertex, Vertex, Integer> w, Vertex s) {
+        initializeSingleSource(g, s);
+
+        List<Pair> pairs = new ArrayList<>();
+        for(Vertex v : g.vertices) {
+            pairs.add(new Pair(v.distance, v.id));
         }
 
-        s.distance = 0;
-    }
+        MinHeap queue = new MinHeap(2, g.vertices.length, pairs);
 
-    private void relax(Vertex u, Vertex v, BiFunction<Vertex, Vertex, Integer> w) {
-        long relaxedDistance = ((long) u.distance) + w.apply(u, v);
-        if (v.distance > relaxedDistance) {
-            v.distance = (int) relaxedDistance;
-            v.parent = u;
+        while (queue.n != 0) {
+            Vertex u = g.vertices[queue.removeMin().val];
+            Set<Neighbor> neighbors = g.getAdjVertices(u.id);
+
+            if (neighbors != null) {
+                for (Neighbor neighbor : neighbors) {
+                    relax(u, g.vertices[neighbor.vertexId], w);
+                    queue.decreaseKey(neighbor.vertexId, g.vertices[neighbor.vertexId].distance);
+                }
+            }
         }
     }
-
-    private Integer getShortestPathLength(Graph g, int src, int dest) {
-        return null; // TODO
-    }
-
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
@@ -326,6 +359,196 @@ public class johnsons {
         Query(int src, int dest) {
             this.src = src;
             this.dest = dest;
+        }
+    }
+
+    /**
+     * Key/value pair, used in the heap and its interface.
+     * @author Dr. Sturgill
+     */
+    class Pair {
+        public int key; //Key to organize the heap
+        public int val; //Value of the heap node
+
+        /**
+         * Initializes a pair with key and value
+         * @param k Given key
+         * @param v Given value
+         */
+        public Pair( int k, int v ) {
+            key = k;
+            val = v;
+        }
+    }
+
+    /**
+     * Actual representation of the heap.
+     *
+     * @author Dr. Sturgill
+     * @author Jeremy Maness
+     */
+    class MinHeap {
+        private int p; // Power of 2 used as the branching factor
+        private Pair[] tree; // Representation for the heap.
+        private int n; // Number of elements in the heap.
+        private int cap; // Capacity of the heap.
+        private Integer[] vertexLocations; //array of vertices location to link vertices between the heap and the graph
+
+        /**
+         * Initializes the heap
+         * @param p Power of 2 used as the branching factor
+         * @param numVertices Maximum number of vertices that can be stored in the heap
+         */
+        public MinHeap( int p, int numVertices, List<Pair> pairs ) {
+            this.p = p;
+            cap = pairs.size(); //Initial capacity
+            n = pairs.size(); //Number of vertices
+            tree = pairs.toArray(new Pair[0]);
+            vertexLocations = new Integer[numVertices];
+
+            for (int i = 0; i < tree.length; i++) {
+                vertexLocations[tree[i].val] = i;
+            }
+
+            buildMinHeap();
+        }
+
+        /**
+         * Implements the Build-Min-Heap procedure from "Introduction to Algorithms, Third Edition"
+         * (Cormen et al. 2009, p. 157).
+         *
+         * As shown on p. 157-159, a similar asymptotic analysis shows that this is O(V).
+         *
+         */
+        private void buildMinHeap() {
+            n = tree.length;
+            for (int i = tree.length / 2; i >= 0; i--) {
+                minHeapify(i);
+            }
+        }
+
+        /**
+         * Min heapify procedure that pushes the node at the specified index in
+         * the heap down until the heap ordering constraint is satisfied.
+         *
+         * @param idx index of node in the heap
+         */
+        private void minHeapify(int idx) {
+
+            /*
+             * We need the branching factor below.
+             */
+            int branch = 1 << p;
+
+            /*
+             * Push this value down until it satisfies the ordering constraint.
+             */
+            int child = ( idx << p ) + 1;
+            while ( child < n ) {
+                // Find index of smallest child.
+                int m = child;
+                int end = child + branch;
+                if ( end > n )
+                    end = n;
+                for ( int i = child + 1; i < end; i++ )
+                    if (tree[i].key < tree[m].key)
+                        m = i;
+
+                /*
+                 * Not happy about this early return.  Would be nice to have it in the condition
+                 * on the loop.  Return early if we hit a point where we don't have to swap.
+                 */
+                if (tree[m].key >= tree[idx].key)
+                    return;
+
+                /*
+                 * Swap the current value with its smallest child
+                 */
+                Pair temp = tree[ idx ];
+                tree[ idx ] = tree[ m ];
+                tree[ m ] = temp;
+
+                vertexLocations[tree[idx].val] = idx;
+                vertexLocations[tree[m].val] = m;
+
+                /*
+                 * Follow the value down into the tree.
+                 */
+                idx = m;
+                child = ( idx << p ) + 1;
+            }
+        }
+
+        /**
+         * Remove the minimum value from the heap and executes a heapify operation to reorganize the heap.
+         *
+         * @return the vertex with minimum key value of the heap
+         */
+        Pair removeMin() {
+            Pair v = tree[ 0 ];
+            tree[ 0 ] = tree[ n - 1 ];
+            n -= 1;
+
+            vertexLocations[v.val] = null;
+            vertexLocations[tree[0].val] = 0;
+
+            minHeapify(0);
+
+            return v;
+        }
+
+        /**
+         * Decreases the key of the given vertex in the heap
+         *
+         * @param vertexId Given vertex ID
+         * @param key Original vertex key value
+         */
+        void decreaseKey(int vertexId, int key) {
+            Integer idx = vertexLocations[vertexId];
+
+            if (idx == null) {
+                return;
+            }
+
+            Pair pair = tree[idx];
+
+            if (key > pair.key) {
+                throw new RuntimeException("new key is larger than current key");
+            }
+
+            pair.key = key;
+
+            int i = idx;
+            while (i > 0 && tree[parent(i)].key > pair.key) {
+                Pair temp = tree[i];
+                tree[i] = tree[parent(i)];
+                tree[parent(i)] = temp;
+
+                vertexLocations[tree[parent(i)].val] = parent(i);
+                vertexLocations[tree[i].val] = i;
+
+                i = parent(i);
+            }
+        }
+
+        /**
+         * Search the heap for the given vertex
+         *
+         * @param vertexId ID of the vertex to search
+         * @return True if the vertex is in the heap
+         */
+        boolean contains(int vertexId) {
+            return vertexLocations[vertexId] != null;
+        }
+
+        /**
+         * Returns the parent of the vertex with given index
+         *
+         * @param idx Vertex index
+         * @return Index of the parent
+         */
+        int parent(int idx) {
+            return (idx - 1) >> p;
         }
     }
 }
