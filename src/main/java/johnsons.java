@@ -182,21 +182,21 @@ public class johnsons {
     /**
      * Bellman-Ford algorithm for shortest paths and negative weight cycle detection
      *
-     * @param G Graph
+     * @param g Graph
      * @param w edge weight function
      * @param s start vertex
      * @return false if there is a negative weight cycle, true otherwise
      */
-    private boolean bellmanFord(Graph G, BiFunction<Vertex, Vertex, Integer> w, Vertex s) {
-        initializeSingleSource(G, s);
+    private boolean bellmanFord(Graph g, BiFunction<Vertex, Vertex, Integer> w, Vertex s) {
+        initializeSingleSource(g, s);
 
-        for (int i = 1; i < G.vertices.length; i++) {
-            for (Edge e : G.edges) {
+        for (int i = 1; i < g.vertices.length; i++) {
+            for (Edge e : g.edges) {
                 relax(e.src, e.dest, w);
             }
         }
 
-        for (Edge e : G.edges) {
+        for (Edge e : g.edges) {
             if (e.dest.distance > ((long) e.src.distance) + w.apply(e.src, e.dest)) {
                 return false;
             }
