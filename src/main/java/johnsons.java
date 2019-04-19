@@ -10,11 +10,22 @@ import java.util.Set;
 import java.util.function.BiFunction;
 
 /**
+ * CSC 505 HW5 - Johnson's Algorithm on a Sparse Graph
  *
+ * Reads a graph description and list of path queries from stdin, and returns
+ * the lengths of the shortest paths for the queries.
  *
  */
 public class johnsons {
 
+    /**
+     * Executes Johnson's Algorithm and prints the query path lengths.
+     *
+     * @param n number of vertices in the graph
+     * @param m number of edges in the graph
+     * @param edges set of edges of the graph
+     * @param queries list of path queries
+     */
     private void run(int n, int m, Set<Edge> edges, List<Query> queries) {
         Vertex[] vertices = new Vertex[n];
         for (Edge e : edges) {
@@ -36,7 +47,13 @@ public class johnsons {
         }
     }
 
-
+    /**
+     * Johnson's Algorithm on a sparse graph. Returns an n x n matrix of
+     * shortest path lengths between any two vertices.
+     *
+     * @param g Graph
+     * @return an n x n matrix of shortest path lengths between any two vertices
+     */
     private Integer[][] johnson(Graph g) {
         // new vertex not in G.V
         Vertex s = new Vertex(g.vertices.length, 0);
@@ -88,6 +105,14 @@ public class johnsons {
         return D;
     }
 
+    /**
+     * Weight function to return the weight of an edge connecting vertices u and v.
+     *
+     * @param g Graph
+     * @param u source vertex
+     * @param v destination vertex
+     * @return edge weight connecting vertices u and v.
+     */
     private Integer weight(Graph g, Vertex u, Vertex v) {
         Set<Neighbor> neighbors = g.adjList.get(u.id);
 
@@ -102,6 +127,16 @@ public class johnsons {
         return null;
     }
 
+    /**
+     * Reweighting function to eliminate negative weights but preserve the
+     * shortest length paths.
+     *
+     * @param w original edge weight function that could return negative weights
+     * @param u source vertex
+     * @param v destination vertex
+     * @param h array of shortest path lengths from some starting vertex
+     * @return new edge weight connecting vertices u, v
+     */
     private Integer reweight(BiFunction<Vertex, Vertex, Integer> w, Vertex u, Vertex v, Integer[] h) {
         Integer weight = w.apply(u, v);
         if (weight == null) {
@@ -111,8 +146,15 @@ public class johnsons {
         return w.apply(u, v) + h[u.id] - h[v.id];
     }
 
-    private void initializeSingleSource(Graph G, Vertex s) {
-        for (Vertex vertex : G.vertices) {
+    /**
+     * Initializes the shortest path estimate and parent properties of every
+     * vertex in the graph.
+     *
+     * @param g Graph
+     * @param s start vertex.
+     */
+    private void initializeSingleSource(Graph g, Vertex s) {
+        for (Vertex vertex : g.vertices) {
             vertex.distance = Integer.MAX_VALUE;
             vertex.parent = null;
         }
@@ -120,6 +162,15 @@ public class johnsons {
         s.distance = 0;
     }
 
+    /**
+     * Relaxes an edge connecting vertices u and v by calculating whether the
+     * shortest from a start vertex to v can be improved by going through
+     * vertex u.
+     *
+     * @param u source vertex
+     * @param v destination vertex
+     * @param w edge weight function
+     */
     private void relax(Vertex u, Vertex v, BiFunction<Vertex, Vertex, Integer> w) {
         long relaxedDistance = ((long) u.distance) + w.apply(u, v);
         if (v.distance > relaxedDistance) {
@@ -128,6 +179,14 @@ public class johnsons {
         }
     }
 
+    /**
+     * Bellman-Ford algorithm for shortest paths and negative weight cycle detection
+     *
+     * @param G Graph
+     * @param w edge weight function
+     * @param s start vertex
+     * @return false if there is a negative weight cycle, true otherwise
+     */
     private boolean bellmanFord(Graph G, BiFunction<Vertex, Vertex, Integer> w, Vertex s) {
         initializeSingleSource(G, s);
 
@@ -146,6 +205,13 @@ public class johnsons {
         return true;
     }
 
+    /**
+     * Dijkstra's algorithm for shortest path length
+     *
+     * @param g Graph
+     * @param w edge weight function
+     * @param s start vertex
+     */
     private void dijkstra(Graph g, BiFunction<Vertex, Vertex, Integer> w, Vertex s) {
         initializeSingleSource(g, s);
 
@@ -171,9 +237,8 @@ public class johnsons {
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-
-        int n = scanner.hasNextInt() ? scanner.nextInt() : 0;
-        int m = scanner.hasNextInt() ? scanner.nextInt() : 0;
+        int n = scanner.hasNextInt() ? scanner.nextInt() : 0; // number of vertices
+        int m = scanner.hasNextInt() ? scanner.nextInt() : 0; // number of edges
 
         Map<Integer, Vertex> vertices = new HashMap<>();
         List<Edge> edges = new LinkedList<>();
@@ -529,16 +594,6 @@ public class johnsons {
 
                 i = parent(i);
             }
-        }
-
-        /**
-         * Search the heap for the given vertex
-         *
-         * @param vertexId ID of the vertex to search
-         * @return True if the vertex is in the heap
-         */
-        boolean contains(int vertexId) {
-            return vertexLocations[vertexId] != null;
         }
 
         /**
