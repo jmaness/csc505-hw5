@@ -114,13 +114,12 @@ public class johnsons {
      * @return edge weight connecting vertices u and v.
      */
     private Integer weight(Graph g, Vertex u, Vertex v) {
-        Set<Neighbor> neighbors = g.adjList.get(u.id);
+        Map<Integer, Neighbor> neighbors = g.adjList.get(u.id);
 
         if (neighbors != null) {
-            for (Neighbor neighbor : neighbors) {
-                if (neighbor.vertexId == v.id) {
-                    return neighbor.edgeWeight;
-                }
+            Neighbor neighbor = neighbors.get(v.id);
+            if (neighbor != null) {
+                return neighbor.edgeWeight;
             }
         }
 
@@ -143,7 +142,7 @@ public class johnsons {
             return null;
         }
 
-        return w.apply(u, v) + h[u.id] - h[v.id];
+        return weight + h[u.id] - h[v.id];
     }
 
     /**
@@ -224,10 +223,10 @@ public class johnsons {
 
         while (queue.n != 0) {
             Vertex u = g.vertices[queue.removeMin().val];
-            Set<Neighbor> neighbors = g.getAdjVertices(u.id);
+            Map<Integer, Neighbor> neighbors = g.getAdjVertices(u.id);
 
             if (neighbors != null) {
-                for (Neighbor neighbor : neighbors) {
+                for (Neighbor neighbor : neighbors.values()) {
                     relax(u, g.vertices[neighbor.vertexId], w);
                     queue.decreaseKey(neighbor.vertexId, g.vertices[neighbor.vertexId].distance);
                 }
@@ -262,7 +261,7 @@ public class johnsons {
      *
      */
     static class Graph {
-        private ArrayList<Set<Neighbor>> adjList; //Graph's adjacency list
+        private ArrayList<Map<Integer, Neighbor>> adjList; //Graph's adjacency list
         private Set<Edge> edges;
         private Vertex[] vertices; // Set of all the vertices in the graph
 
@@ -281,23 +280,23 @@ public class johnsons {
             }
 
             for (Edge edge : edges) {
-                Set<Neighbor> neighbors = adjList.size() > edge.src.id ? adjList.get(edge.src.id) : null;
+                Map<Integer, Neighbor> neighbors = adjList.size() > edge.src.id ? adjList.get(edge.src.id) : null;
 
                 if (neighbors == null) {
-                    neighbors = new HashSet<>();
+                    neighbors = new HashMap<>();
                 }
 
-                neighbors.add(new Neighbor(edge.dest.id, edge.weight));
+                neighbors.put(edge.dest.id, new Neighbor(edge.dest.id, edge.weight));
                 adjList.set(edge.src.id, neighbors);
             }
         }
 
         /**
-         * Returns adjacency list for a given vertex
+         * Returns adjacency map for a given vertex
          * @param u Vertex to get the adjacency list from
-         * @return adjacency list of the given vertex
+         * @return adjacency map of the given vertex
          */
-        Set<Neighbor> getAdjVertices(int u) {
+        Map<Integer, Neighbor> getAdjVertices(int u) {
             return adjList.get(u);
         }
 
